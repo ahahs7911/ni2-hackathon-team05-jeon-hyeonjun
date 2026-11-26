@@ -34,8 +34,9 @@
     -webkit-text-size-adjust: 100%;
   }
   .app { max-width: 600px; margin: 0 auto; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
+  .topbar { position: sticky; top: 0; z-index: 5; background: var(--bg); box-shadow: 0 2px 6px rgba(20, 40, 70, .08); }
+  .topbar .progress-label { padding-bottom: 6px; }
   header.top {
-    position: sticky; top: 0; z-index: 5;
     background: var(--blue); color: #fff;
     padding: 12px 16px calc(10px);
     display: flex; align-items: center; gap: 10px;
@@ -51,6 +52,7 @@
   .progress-label { font-size: 12px; color: var(--muted); padding: 4px 16px 0; }
 
   main#chat { flex: 1; padding: 12px 12px 24px; display: flex; flex-direction: column; gap: 10px; }
+  main#chat > * { scroll-margin-top: 112px; } /* 고정된 상단 막대에 새 내용이 가려지지 않게 */
   .msg { display: flex; gap: 8px; align-items: flex-end; animation: pop .18s ease-out; }
   .msg.user { justify-content: flex-end; }
   .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 13px; font-weight: 700; display: grid; place-items: center; flex: none; }
@@ -145,6 +147,7 @@
 </head>
 <body>
 <div class="app">
+  <div class="topbar">
   <header class="top">
     <div class="logo" aria-hidden="true">공</div>
     <div class="brand">
@@ -155,6 +158,7 @@
   </header>
   <div class="progress" id="progress" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
   <div class="progress-label" id="progressLabel" aria-live="polite"></div>
+  </div>
 
   <main id="chat" aria-live="polite"></main>
 
