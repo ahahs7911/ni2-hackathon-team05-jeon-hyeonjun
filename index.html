@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="공조닥터: 공조기 고장 증상을 고르면 점검 순서를 안내하고 A/S 접수 요약을 만들어 주는 시제품 (2026 NI2.0 AID 해커톤 5팀 냉동냥이)">
+<meta name="description" content="서번 점검 길잡이: 공조기 고장 증상을 고르면 점검 순서를 안내하고 A/S 접수 요약을 만들어 주는 시제품 (2026 NI2.0 AID 해커톤 5팀 냉동냥이)">
 <meta name="theme-color" content="#0b5cab">
-<title>공조닥터 · 공조기 증상 점검 안내</title>
+<title>서번 점검 길잡이 · 공조기 증상 점검 안내</title>
 <style>
   :root {
     --blue: #0b5cab;
@@ -149,9 +149,9 @@
 <div class="app">
   <div class="topbar">
   <header class="top">
-    <div class="logo" aria-hidden="true">공</div>
+    <div class="logo" aria-hidden="true">서</div>
     <div class="brand">
-      <h1>공조닥터</h1>
+      <h1>서번 점검 길잡이</h1>
       <p>공조기 증상 → 점검 순서 안내 · A/S 접수 요약</p>
     </div>
     <button class="restart" id="restartBtn" type="button" aria-label="처음부터 다시 시작">처음으로</button>
@@ -171,7 +171,7 @@
 
 <script>
 /* =========================================================
-   공조닥터 v0.1 · 서버/로그인 없이 동작하는 단일 파일 시제품
+   서번 점검 길잡이 v0.1 · 서버/로그인 없이 동작하는 단일 파일 시제품
    데이터 출처: https://www.seobun.co.kr/service/ (2026-11-18)
    ========================================================= */
 
@@ -501,7 +501,7 @@ function scrollDown() {
 }
 function bot(...paras) {
   const bubble = el('div', { class: 'bubble' }, paras.map(p => typeof p === 'string' ? el('p', { text: p }) : p));
-  chat.append(el('div', { class: 'msg bot' }, el('div', { class: 'avatar', 'aria-hidden': 'true', text: '공' }), bubble));
+  chat.append(el('div', { class: 'msg bot' }, el('div', { class: 'avatar', 'aria-hidden': 'true', text: '서' }), bubble));
   scrollDown();
 }
 function user(text) {
@@ -550,7 +550,7 @@ function start() {
   resetState();
   chat.innerHTML = '';
   setStage(0);
-  bot('안녕하세요, 공조닥터입니다.', '공조기에 이상이 생겼을 때 무엇부터 확인할지 한 단계씩 안내하고, 해결이 안 되면 A/S 접수 요약을 만들어 드려요.');
+  bot('안녕하세요, 서번 점검 길잡이입니다.', '공조기에 이상이 생겼을 때 무엇부터 확인할지 한 단계씩 안내하고, 해결이 안 되면 A/S 접수 요약을 만들어 드려요.');
   bot('먼저 안전부터 확인할게요. 지금 해당하는 것이 있으면 모두 체크해주세요.');
   const list = el('ul', { class: 'safety-list' }, SAFETY_ITEMS.map(s =>
     el('li', {}, el('label', {}, el('input', { type: 'checkbox', value: s.id }), el('span', { text: s.text })))
@@ -734,7 +734,7 @@ function buildSummary(isEmergency) {
     ? '해당 있음 - ' + state.safety.map(id => SAFETY_ITEMS.find(x => x.id === id).text).join(', ')
     : '연기·타는 냄새, 심한 소음·진동, 전기부 주변 누수 없음';
   const lines = [
-    '[A/S 접수 요약] 공조닥터 작성',
+    '[A/S 접수 요약] 서번 점검 길잡이 작성',
     `- 문의 유형: ${s.asType}`,
     `- 긴급도: ${isEmergency ? '긴급 (안전 이상)' : '일반 점검 요청'}`,
     `- 현장명: ${d.site || blank}`,
