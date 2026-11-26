@@ -509,6 +509,7 @@ function choices(items, layout = '') {
     const b = el('button', { class: 'btn ' + (it.cls || ''), type: 'button' }, it.label, it.sub ? el('small', { text: it.sub }) : null);
     b.addEventListener('click', () => {
       wrap.querySelectorAll('button').forEach(x => x.disabled = true);
+      wrap.remove(); /* 선택이 끝난 버튼 묶음은 숨기고, 선택 내용은 오른쪽 말풍선으로 남김 */
       if (it.echo !== false) user(it.echoText || it.label);
       it.go();
     });
@@ -524,7 +525,10 @@ function card(...children) {
   scrollDown();
   return c;
 }
-function lockCard(c) { c.querySelectorAll('button, input, select, textarea').forEach(x => x.disabled = true); }
+function lockCard(c) {
+  c.querySelectorAll('button, input, select, textarea').forEach(x => x.disabled = true);
+  c.querySelectorAll('.actions').forEach(a => a.style.display = 'none'); /* 지난 카드의 버튼도 숨김 */
+}
 
 const STAGES = ['안전 확인', '장비 선택', '증상 선택', '단계별 점검', '결과'];
 function setStage(i) {
