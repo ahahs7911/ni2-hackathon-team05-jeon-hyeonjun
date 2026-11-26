@@ -78,7 +78,9 @@
   .btn.no { border-color: var(--danger); color: var(--danger); }
   .btn.no:hover { background: var(--danger-soft); }
   .btn.ghost { border-color: var(--line); color: var(--muted); }
-  .btn:disabled { opacity: .45; cursor: default; background: #fff; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn:not(.primary):disabled:hover { background: #fff; }
+  .btn.primary:disabled:hover { background: var(--blue); }
   .btn.center { text-align: center; }
 
   .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-left: 38px; animation: pop .18s ease-out; }
