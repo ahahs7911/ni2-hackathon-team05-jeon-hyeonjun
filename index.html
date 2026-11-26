@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="공조닥터: 공조기 고장 증상을 고르면 점검 순서를 안내하고 A/S 접수 요약을 만들어 주는 시제품 (2026 NI2.0 AID 해커톤 5팀 냉동냥이)">
+<meta name="theme-color" content="#0b5cab">
+<title>공조닥터 · 공조기 증상 점검 안내</title>
+<style>
+  :root {
+    --blue: #0b5cab;
+    --blue-soft: #e8f1fb;
+    --ink: #1b2430;
+    --muted: #5b6776;
+    --line: #dfe5ec;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --ok: #1d7a46;
+    --ok-soft: #e6f4ec;
+    --warn: #a15c00;
+    --warn-soft: #fff3df;
+    --danger: #b3261e;
+    --danger-soft: #fdeceb;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    word-break: keep-all;
+    -webkit-text-size-adjust: 100%;
+  }
+  .app { max-width: 600px; margin: 0 auto; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
+  header.top {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--blue); color: #fff;
+    padding: 12px 16px calc(10px);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo { width: 36px; height: 36px; border-radius: 10px; background: #fff; color: var(--blue); display: grid; place-items: center; font-weight: 800; font-size: 18px; flex: none; }
+  .brand { flex: 1; min-width: 0; }
+  .brand h1 { margin: 0; font-size: 18px; line-height: 1.2; }
+  .brand p { margin: 2px 0 0; font-size: 12px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .restart { background: rgba(255,255,255,.16); color: #fff; border: 1px solid rgba(255,255,255,.4); border-radius: 999px; padding: 7px 12px; font-size: 13px; cursor: pointer; flex: none; }
+  .progress { display: flex; gap: 4px; padding: 10px 16px 0; }
+  .progress span { flex: 1; height: 4px; border-radius: 4px; background: var(--line); }
+  .progress span.on { background: var(--blue); }
+  .progress-label { font-size: 12px; color: var(--muted); padding: 4px 16px 0; }
+
+  main#chat { flex: 1; padding: 12px 12px 24px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { display: flex; gap: 8px; align-items: flex-end; animation: pop .18s ease-out; }
+  .msg.user { justify-content: flex-end; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 13px; font-weight: 700; display: grid; place-items: center; flex: none; }
+  .bubble { max-width: 86%; background: var(--card); border: 1px solid var(--line); border-radius: 4px var(--radius) var(--radius) var(--radius); padding: 10px 13px; font-size: 15px; }
+  .msg.user .bubble { background: var(--blue); color: #fff; border-color: var(--blue); border-radius: var(--radius) 4px var(--radius) var(--radius); }
+  .bubble p { margin: 0 0 6px; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble .small { font-size: 13px; color: var(--muted); }
+  @keyframes pop { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .choices { display: flex; flex-wrap: wrap; gap: 8px; padding-left: 38px; }
+  .choices.grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .choices.col { flex-direction: column; }
+  .btn {
+    appearance: none; border: 1px solid var(--blue); background: #fff; color: var(--blue);
+    border-radius: 12px; padding: 11px 14px; font-size: 15px; font-weight: 600; cursor: pointer;
+    text-align: left; min-height: 46px; font-family: inherit; line-height: 1.35;
+  }
+  .btn small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .btn:hover, .btn:focus-visible { background: var(--blue-soft); outline: none; }
+  .btn.primary { background: var(--blue); color: #fff; }
+  .btn.primary:hover { background: #094b8c; }
+  .btn.ok { border-color: var(--ok); color: var(--ok); }
+  .btn.ok:hover { background: var(--ok-soft); }
+  .btn.no { border-color: var(--danger); color: var(--danger); }
+  .btn.no:hover { background: var(--danger-soft); }
+  .btn.ghost { border-color: var(--line); color: var(--muted); }
+  .btn:disabled { opacity: .45; cursor: default; background: #fff; }
+  .btn.center { text-align: center; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin-left: 38px; animation: pop .18s ease-out; }
+  .card h2 { font-size: 16px; margin: 0 0 8px; }
+  .card h3 { font-size: 14px; margin: 14px 0 6px; }
+  .step-no { display: inline-block; font-size: 12px; font-weight: 700; color: var(--blue); background: var(--blue-soft); border-radius: 999px; padding: 2px 9px; margin-bottom: 6px; }
+  .step-do { font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+  .note { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+  .dont { margin-top: 10px; background: var(--danger-soft); border-left: 4px solid var(--danger); border-radius: 8px; padding: 8px 10px; font-size: 14px; color: #6e1712; }
+  .dont b { color: var(--danger); }
+  .info { margin-top: 10px; background: var(--warn-soft); border-left: 4px solid var(--warn); border-radius: 8px; padding: 8px 10px; font-size: 14px; color: #5c3600; }
+
+  .safety-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
+  .safety-list label { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 10px; cursor: pointer; font-size: 15px; }
+  .safety-list input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; accent-color: var(--danger); }
+
+  form.intake { display: grid; gap: 12px; }
+  form.intake label { font-size: 14px; font-weight: 600; display: grid; gap: 5px; }
+  form.intake label span.opt { font-weight: 400; color: var(--muted); font-size: 12px; }
+  form.intake input, form.intake select, form.intake textarea {
+    font: inherit; font-size: 16px; padding: 10px 11px; border: 1px solid #c8d1dc; border-radius: 10px; background: #fff; color: var(--ink); width: 100%;
+  }
+  form.intake textarea { min-height: 70px; resize: vertical; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sample-tag { display: inline-block; font-size: 11px; font-weight: 700; color: var(--warn); background: var(--warn-soft); border-radius: 6px; padding: 1px 6px; margin-left: 4px; }
+
+  .result-head { border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .result-head.danger { background: var(--danger-soft); color: #6e1712; }
+  .result-head.warn { background: var(--warn-soft); color: #5c3600; }
+  .result-head.ok { background: var(--ok-soft); color: #11502c; }
+  .result-head strong { display: block; font-size: 18px; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 10px; margin-top: 6px; }
+  .badge.danger { background: var(--danger); color: #fff; }
+  .badge.warn { background: var(--warn); color: #fff; }
+  .badge.ok { background: var(--ok); color: #fff; }
+  pre.summary {
+    white-space: pre-wrap; word-break: break-word; font-family: inherit; font-size: 14px;
+    background: #f7f9fb; border: 1px dashed #b9c4d0; border-radius: 10px; padding: 12px; margin: 0;
+  }
+  ul.check { margin: 0; padding-left: 20px; font-size: 14px; }
+  ul.check li { margin: 3px 0; }
+  .actions { display: grid; gap: 8px; margin-top: 12px; }
+  .contact { font-size: 14px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .contact a { color: var(--blue); font-weight: 600; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #1b2430; color: #fff; padding: 10px 16px; border-radius: 999px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20; }
+  .toast.show { opacity: .95; }
+
+  footer.disclaimer { font-size: 12px; color: var(--muted); padding: 12px 16px 24px; border-top: 1px solid var(--line); background: #fff; }
+  footer.disclaimer p { margin: 0 0 4px; }
+  footer.disclaimer a { color: var(--muted); }
+
+  @media (max-width: 380px) {
+    .choices.grid { grid-template-columns: 1fr; }
+    .row2 { grid-template-columns: 1fr; }
+    .bubble { max-width: 92%; }
+  }
+  @media (min-width: 640px) {
+    .app { border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="logo" aria-hidden="true">공</div>
+    <div class="brand">
+      <h1>공조닥터</h1>
+      <p>공조기 증상 → 점검 순서 안내 · A/S 접수 요약</p>
+    </div>
+    <button class="restart" id="restartBtn" type="button" aria-label="처음부터 다시 시작">처음으로</button>
+  </header>
+  <div class="progress" id="progress" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="progress-label" id="progressLabel" aria-live="polite"></div>
+
+  <main id="chat" aria-live="polite"></main>
+
+  <footer class="disclaimer">
+    <p><b>시제품 안내.</b> 이 화면은 2026 NI2.0 AID 해커톤 5팀(냉동냥이)이 만든 시연용 시제품입니다. 점검 문구는 <a href="https://www.seobun.co.kr/service/" target="_blank" rel="noopener">㈜서번 공식 A/S 안내 페이지</a>(사이트맵 수정일 2026-11-18, 열람일 2026-11-26)를 바탕으로 재구성했습니다.</p>
+    <p>실제 조치는 장비 사용설명서와 ㈜서번 A/S 안내를 따르세요. 긴급도 분류와 문의 유형 연결은 팀의 <b>가설</b>이고, "예시 채우기" 값은 <b>샘플 데이터</b>입니다. 입력한 내용은 이 브라우저 밖으로 전송되지 않습니다.</p>
+  </footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* =========================================================
+   공조닥터 v0.1 · 서버/로그인 없이 동작하는 단일 파일 시제품
+   데이터 출처: https://www.seobun.co.kr/service/ (2026-11-18)
+   ========================================================= */
+
+const AS_CONTACT = {
+  tel: '051-831-7676',
+  telHref: 'tel:+82518317676',
+  telNote: 'ARS 2번, 제품 A/S',
+  email: 'as@seobun.co.kr',
+  page: 'https://www.seobun.co.kr/service/#service-request'
+};
+
+/* 안전 확인 항목 (S2 '안전 확인' 기준) */
+const SAFETY_ITEMS = [
+  { id: 'smoke', text: '연기가 나거나 타는 냄새가 나요' },
+  { id: 'noise', text: '갑자기 심한 소음이나 진동이 생겼어요' },
+  { id: 'water', text: '물이 계속 떨어지거나 전기부(조작반·배선) 주변에 물이 보여요' }
+];
+
+/* 장비 → 증상 → 점검 단계
+   type: 'check'  = 단계별로 해결됨/안 됨
+         'collect'= 사용자 조치 없이 정보만 모아 바로 A/S 요약으로
+   asType: ㈜서번 A/S 양식의 문의 유형 (운전 이상/점검과 수리/부품과 소모품/유지관리) - 연결은 팀 가설 */
+const EQUIPMENT = [
+  {
+    id: 'ahu', name: '공기조화기 (AHU)', hint: '기계실·옥상의 대형 공조기',
+    symptoms: [
+      {
+        id: 'ahu-weak', title: '바람은 나오는데 냉방·난방이 약해요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '운전모드가 "송풍"이라면 "냉방" 또는 "난방"으로 바꿔주세요.', note: '송풍은 바람만 보내는 기능입니다. 평소 모드와 온도를 직접 설정하는 장비에서만 해보세요.' },
+          { do: '희망온도를 확인해주세요. 냉방은 현재 실내온도보다 낮게, 난방은 높게 맞춰야 합니다.' },
+          { do: '냉온수나 실외기 운전 표시가 켜져 있는지 보세요.', note: '연결 설비가 멈춰 있으면 해당 설비의 관리 담당자에게 운전을 요청해주세요.' },
+          { do: '실내온도가 희망온도에 도달하면 냉난방이 잠시 멈출 수 있습니다. 잠시 기다린 뒤 다시 확인해주세요.' }
+        ],
+        dont: '모드를 바꿀 수 없거나 "중앙/원격" 표시가 있으면 건물 관리 담당자에게 문의하세요. 밸브나 제어반 내부는 조작하지 마세요.',
+        photos: ['운전모드·설정온도·현재온도가 보이는 조작 화면', '냉온수/실외기 운전 표시 화면(있다면)']
+      },
+      {
+        id: 'ahu-airflow', title: '바람이 약하게 나와요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '풍량 조절 기능이 있다면 평소 사용하는 풍량으로 맞춰주세요.' },
+          { do: '바람이 나오는 곳(취출구)이나 공기를 빨아들이는 곳(흡입구)을 가린 물건이 있으면 치워주세요.' },
+          { do: '필터에 먼지가 쌓였다면 사용설명서에 따라 청소하거나 교체해주세요.', note: '사용설명서에서 직접 관리할 수 있다고 안내한 필터에만 해당합니다.' }
+        ],
+        dont: '팬 운전 표시는 켜져 있는데 바람이 전혀 나오지 않으면 바로 점검을 요청하세요. 팬이나 벨트는 직접 조정하지 마세요.',
+        photos: ['조작 화면(팬 운전 표시)', '필터 상태(안전하게 볼 수 있을 때만)']
+      },
+      {
+        id: 'ahu-central', title: '"중앙/원격" 표시가 있고 버튼이 작동하지 않아요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '중앙에서 제어하는 장비는 현장의 운전 버튼이 작동하지 않을 수 있습니다. 화면에 중앙/원격 표시가 있는지 확인해주세요.' },
+          { do: '건물 관리 담당자에게 해당 장비의 운전 일정과 정지 상태를 확인해달라고 요청해주세요.', note: '중앙에서 정지해 둔 경우에는 관리 담당자가 운전을 켜거나 일정을 바꿔야 합니다.' }
+        ],
+        dont: '제어반의 자동/수동 스위치로 강제 운전하지 마세요.',
+        photos: ['중앙/원격 표시가 보이는 조작 화면']
+      },
+      {
+        id: 'ahu-dp', title: '필터 차압 경보가 계속 떠요', type: 'check', asType: '유지관리',
+        steps: [
+          { do: '최근에 필터를 청소하거나 교체했는지 확인해주세요.', note: '필터에 먼지가 쌓여 공기가 잘 통하지 않으면 차압 경보가 나타날 수 있습니다.' },
+          { do: '직접 관리할 수 있는 필터라면 사용설명서에 따라 청소하거나 교체해주세요.' }
+        ],
+        dont: '경보를 없애려고 차압 기준값을 바꾸지 마세요.',
+        photos: ['경보가 표시된 화면', '마지막 필터 관리일(기록이 있다면)']
+      },
+      {
+        id: 'ahu-temp', title: '표시 온도·습도가 설정값과 달라요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '희망온도·습도를 설정해도 현재 값이 곧바로 같아지지는 않습니다. 시간을 두고 다시 확인해주세요.' },
+          { do: '차이가 계속되면 운전모드, 설정값, 현재 값이 보이는 화면을 촬영해주세요.' },
+          { do: '하루 종일 차이가 나는지, 특정 시간에만 그런지 확인해주세요. 가습/제습 경보가 있으면 함께 기록해주세요.' }
+        ],
+        dont: '현장에서 정해둔 온습도와 제어 설정을 임의로 바꾸지 마세요.',
+        photos: ['운전모드·설정값·현재값이 보이는 화면', '가습/제습 경보 화면(있다면)']
+      }
+    ]
+  },
+  {
+    id: 'lsu', name: '미리내 (LSU)', hint: '물류센터·공장 천장형 대공간 냉난방기',
+    symptoms: [
+      {
+        id: 'lsu-weak', title: '냉방이나 난방이 약해요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '조작 화면에서 선택한 장비가 맞는지 장비 번호나 위치를 확인해주세요.' },
+          { do: '운전모드가 "송풍"이라면 "냉방" 또는 "난방"으로 바꿔주세요.' },
+          { do: '냉방은 현재 실내온도보다 낮게, 난방은 높게 희망온도를 맞춰주세요. 예열이나 제상 표시가 있으면 끝날 때까지 기다려주세요.' },
+          { do: '희망온도에 도달하면 냉난방이 잠시 멈췄다가 실내온도에 따라 다시 운전합니다. 잠시 기다린 뒤 다시 확인해주세요.' }
+        ],
+        dont: '계속 바람이 나오지 않거나 오류가 표시되면 더 조작하지 말고 장비 번호와 화면 사진을 남겨주세요.',
+        photos: ['장비 번호·운전모드·설정온도가 보이는 조작 화면', '오류 화면(있다면)']
+      },
+      {
+        id: 'lsu-defrost', title: '난방 중 바람이 잠시 멈춰요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '화면에 "예열" 또는 "제상" 표시가 있는지 보세요.', note: '실외기와 연결된 제품은 난방을 준비하거나 실외기의 성에를 녹이는 동안 바람이 잠시 멈출 수 있습니다.' },
+          { do: '다른 오류 없이 예열/제상 표시만 있다면 전원을 끄지 말고 난방이 다시 시작될 때까지 기다려주세요.', note: '대기 시간은 모델별 사용설명서를 참고하세요. (앱에는 시간 값을 넣지 않았습니다: 확인 필요)' },
+          { do: '표시가 사라지고 따뜻한 바람이 다시 나오는지 확인해주세요. 다시 나오면 추가 조작은 필요 없습니다.' }
+        ],
+        dont: '사용설명서의 예열/제상 시간이 지나도 난방이 돌아오지 않거나 오류가 함께 뜨면 점검을 요청하세요.',
+        photos: ['예열/제상 또는 오류 표시 화면']
+      },
+      {
+        id: 'lsu-partial', title: '여러 대 중 일부 장비만 멈춰요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '멈춘 장비의 번호나 위치를 확인하고, 조작 화면에서 그 장비를 선택해주세요.' },
+          { do: '오류 없이 "정지" 표시만 있다면 운전 버튼을 눌러주세요. 직접 설정한 꺼짐예약도 확인해주세요.' }
+        ],
+        dont: '켜도 운전하지 않거나 오류가 반복되면 다시 켜지 말고 문의하세요. 중앙제어 중인 장비는 관리 담당자에게 운전을 요청하세요.',
+        photos: ['멈춘 장비의 번호·위치', '조작 화면(정지/오류 표시)']
+      },
+      {
+        id: 'lsu-error', title: '운전 중 오류가 반복되거나 팬이 멈춰요', type: 'collect', asType: '점검과 수리',
+        steps: [
+          { do: '장비 번호나 설치 위치, 그리고 오류 화면을 기록해주세요.' },
+          { do: '실내 장비와 실외기 중 어디에 오류가 뜨는지, 이전에도 같은 증상이 있었는지 확인해주세요.' }
+        ],
+        dont: '장비를 다시 켜거나 오류를 반복해서 지우지 마세요. 팬 상태를 확인하려고 장비를 열거나 내부에 접근하지 마세요.',
+        photos: ['오류 코드가 보이는 화면', '장비 번호·설치 위치']
+      }
+    ]
+  },
+  {
+    id: 'hrx', name: '열교환기 (회전형/판형)', hint: '배기열 회수 장치',
+    symptoms: [
+      {
+        id: 'hrx-rotor', title: '회전형 열교환기의 로터가 돌지 않아요', type: 'check', asType: '점검과 수리',
+        steps: [
+          { do: '연결된 공기조화기나 환기장비가 켜져 있는지 보세요. 정지 상태라면 평소 사용하는 운전 버튼으로 켜주세요.', note: '오류나 큰 소음 없이 정지해 있을 때만 해보세요. 로터는 연결 장비와 함께 멈출 수 있습니다.' },
+          { do: '평소 쓰는 화면에 "열회수 운전" 버튼이 있다면 켜져 있는지 확인해주세요.' },
+          { do: '덮개를 열지 않고 볼 수 있는 점검창이 있을 때만 회전 여부를 확인해주세요.' }
+        ],
+        dont: '운전 중에도 돌지 않으면 점검을 요청하세요. 모터나 벨트는 직접 조정하지 마세요.',
+        photos: ['연결 장비의 조작 화면', '점검창으로 본 로터(볼 수 있을 때만)']
+      },
+      {
+        id: 'hrx-weak', title: '열 회수 효과가 약해진 것 같아요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '연결된 공기조화기나 환기장비가 운전 중인지 보세요.', note: '열 회수 효과는 실내외 온도, 풍량, 연결 장비 운전 상태에 따라 달라집니다. 바람 온도만으로 고장 여부를 판단하기는 어렵습니다.' },
+          { do: '평소와 차이가 계속되면 발생 시점과 조작 화면을 기록해주세요. 온도나 필터 경보가 있으면 함께 기록해주세요.' }
+        ],
+        dont: '장비 내부 설정이나 풍량을 임의로 조정하지 마세요.',
+        photos: ['조작 화면', '온도·필터 경보 화면(있다면)']
+      },
+      {
+        id: 'hrx-clean', title: '열교환기는 어떻게 청소하나요?', type: 'check', asType: '유지관리',
+        steps: [
+          { do: '회전형·판형, 소재에 따라 청소 방법이 다릅니다. 먼저 모델별 사용설명서를 확인해주세요.', note: '물세척이 안 되는 제품도 있습니다. 방법을 모르시면 모델명이나 장비 사진, 오염 상태를 보내 문의하세요.' }
+        ],
+        dont: '방법을 확인하기 전에는 물이나 약품을 뿌리거나 고압세척하지 마세요.',
+        photos: ['장비 이름표(모델명)', '오염 상태 사진']
+      },
+      {
+        id: 'hrx-noise', title: '회전형 열교환기에서 소음이 나요', type: 'collect', asType: '점검과 수리',
+        steps: [
+          { do: '갑자기 큰 소음이나 진동이 생겼다면, 안전하게 조작할 수 있을 때만 운전을 멈춰주세요.' },
+          { do: '소리가 시작된 시점과, 연결 장비가 켜졌을 때만 나는지 기록해주세요. 안전한 곳에서 촬영한 영상이 있으면 함께 준비해주세요.' }
+        ],
+        dont: '덮개를 열거나 회전부에 손을 넣지 마세요. 소리를 확인하려고 다시 켜지 마세요.',
+        photos: ['안전한 곳에서 촬영한 소음 영상', '장비 이름표(모델명)']
+      },
+      {
+        id: 'hrx-water', title: '열교환기 주변에 물이 맺히거나 떨어져요', type: 'collect', asType: '점검과 수리',
+        steps: [
+          { do: '물이 열교환기 외부에 맺히는지, 연결된 공기조화기나 배관 쪽에서 떨어지는지 보이는 곳에서만 살펴보세요.' },
+          { do: '처음 생긴 시점, 냉방 중인지, 비가 온 뒤인지 기록하고 사진을 찍어주세요.' }
+        ],
+        dont: '물이 계속 떨어지거나 전기부 주변에 보이면 접근하지 마세요. 덮개를 열거나 실링재를 덧바르지 마세요.',
+        photos: ['물이 맺히거나 떨어지는 위치', '바닥·천장 젖은 부위']
+      }
+    ]
+  },
+  {
+    id: 'erv', name: '공기순환기 (ERV/HRV)', hint: '열회수 환기장비',
+    symptoms: [
+      {
+        id: 'erv-airflow', title: '바람이 약하거나 풍량이 저절로 바뀌어요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '자동운전에서는 센서가 감지한 공기 상태에 따라 풍량이 바뀝니다. 일정한 풍량을 원하면 자동/수동 버튼으로 수동운전을 선택해주세요.' },
+          { do: '풍량 올림/내림 버튼으로 원하는 단수를 맞춰주세요.', note: '자동운전으로 되돌리려면 자동/수동 버튼을 다시 누르면 됩니다.' },
+          { do: '수동에서도 바람이 약하면 환기구를 가린 물건과 필터 상태를 살펴보세요.' }
+        ],
+        dont: '중앙제어로 잠겨 있으면 관리 담당자에게 변경을 요청하세요.',
+        photos: ['조작기 화면(자동/수동, 풍량 단수)']
+      },
+      {
+        id: 'erv-filter', title: '필터 교체 표시가 계속 떠요', type: 'check', asType: '유지관리',
+        steps: [
+          { do: '필터를 청소하거나 교체해주세요. (사용설명서에서 직접 관리할 수 있다고 안내한 필터만)' },
+          { do: '조작기 왼쪽의 "필터교체" 버튼을 2초간 눌러주세요.', note: '서번 안내 그림과 같은 조작기에 해당합니다. 조작기가 다르면 모델명이나 화면 사진으로 문의하세요.' },
+          { do: '필터 교체 알림이 꺼졌는지 확인해주세요.' }
+        ],
+        dont: '청소나 교체 전에 알림만 지우지 마세요.',
+        photos: ['조작기 화면', '필터 상태']
+      },
+      {
+        id: 'erv-off', title: '화면이 꺼져 있거나 버튼이 작동하지 않아요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '"잠금"이나 "중앙제어" 표시가 있으면 건물 관리 담당자에게 잠금 해제나 운전을 요청해주세요.' },
+          { do: '정전 뒤 멈춘 경우라면 전원이 복구된 것을 확인한 뒤 운전/정지 버튼을 한 번 눌러주세요.' },
+          { do: '오류 없이 "정지" 표시만 있다면 운전/정지 버튼으로 켜주세요.' }
+        ],
+        dont: '화면이 계속 꺼져 있거나 오류가 뜨면 점검을 요청하세요. 조작기나 장비는 열지 마세요.',
+        photos: ['조작기 화면(꺼짐/오류 표시)']
+      },
+      {
+        id: 'erv-temp', title: '환기를 켰는데 시원하거나 따뜻하지 않아요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '열회수 환기 전용 제품은 빠져나가는 열을 회수해 냉난방 손실을 줄이는 장비입니다. 에어컨이나 난방기처럼 실내온도를 직접 맞추지는 않습니다.' },
+          { do: '실내온도를 바꾸려면 별도의 냉난방기를 함께 사용해주세요.', note: '냉난방 겸용 모델은 기능이 다릅니다. 궁금하면 모델명으로 문의하세요.' }
+        ],
+        dont: '환기장비의 풍량만 높여서 원하는 온도를 맞추려고 하지 마세요. 잘 맞춰지지 않습니다.',
+        photos: ['장비 이름표(모델명)']
+      }
+    ]
+  },
+  {
+    id: 'common', name: '잘 모르겠어요 / 공통 증상', hint: '전원, 오류, 누수, 소음, 냄새 등',
+    symptoms: [
+      {
+        id: 'c-power', title: '장비가 켜지지 않아요', type: 'check', asType: '운전 이상',
+        steps: [
+          { do: '화면에 "정지"가 표시되면 운전/정지 버튼을 한 번 눌러주세요.' },
+          { do: '직접 설정한 꺼짐예약이 있다면 해제해주세요.', note: '건물 전체의 운전 일정은 관리 담당자에게 확인해주세요.' },
+          { do: '무선 리모컨 화면만 꺼졌다면 배터리를 바꿔보세요.' }
+        ],
+        dont: '화면이 계속 꺼져 있거나 차단기가 내려가 있으면 점검을 요청하세요. 차단기를 반복해서 올리지 마세요. 벽에 고정된 조작기는 분리하거나 열지 마세요.',
+        photos: ['조작 화면', '장비 이름표(안전하게 볼 수 있을 때만)']
+      },
+      {
+        id: 'c-error', title: '화면에 오류 표시가 떠요', type: 'collect', asType: '점검과 수리',
+        steps: [
+          { do: '표시된 글자와 숫자가 보이도록 화면을 촬영해주세요. 서로 다른 코드가 번갈아 나오면 각각 기록해주세요.' },
+          { do: '언제 처음 나타났는지, 운전할 때마다 반복되는지 확인해주세요.' }
+        ],
+        dont: '오류를 지우려고 차단기를 반복해서 켜거나 설정을 초기화하지 마세요.',
+        photos: ['오류 코드가 보이는 화면(코드별로 각각)']
+      },
+      {
+        id: 'c-water', title: '물이 떨어지거나 결로가 생겨요', type: 'collect', asType: '점검과 수리',
+        steps: [
+          { do: '물이 장비 아래에서 떨어지는지, 천장이나 연결 배관 쪽에서 나오는지 보이는 곳에서만 살펴보세요.' },
+          { do: '언제부터 생겼는지, 냉방 중이나 비가 온 뒤에 생기는지 기록하고 사진을 찍어주세요.' }
+        ],
+        dont: '물이 계속 떨어지거나 전기부 주변에 보이면 접근하지 마세요. 누수 부위를 찾으려고 장비를 열거나 배관을 분리하지 마세요.',
+        photos: ['물이 떨어지는 위치', '젖은 천장·바닥']
+      },
+      {
+        id: 'c-noise', title: '소음이나 진동이 커졌어요', type: 'collect', asType: '점검과 수리',
+        steps: [
+          { do: '갑자기 큰 소음이나 진동이 생겼다면, 안전하게 조작할 수 있을 때만 운전을 멈춰주세요.' },
+          { do: '소리가 나는 장비와 시작된 시점을 기록해주세요. 안전한 곳에서 촬영한 영상이 있으면 함께 준비해주세요.' }
+        ],
+        dont: '소리를 확인하려고 장비를 다시 켜거나 내부 부품을 만지지 마세요.',
+        photos: ['안전한 곳에서 촬영한 소음·진동 영상']
+      },
+      {
+        id: 'c-smell', title: '평소와 다른 냄새가 나요 (타는 냄새 제외)', type: 'check', asType: '점검과 수리',
+        steps: [
+          { do: '언제부터 났는지, 장비를 켰을 때만 나는지 살펴보세요.' },
+          { do: '장비를 끈 상태나 실외에서도 같은 냄새가 나는지, 최근 필터를 관리한 적이 있는지 확인해주세요.', note: '필터가 오래됐다면 사용설명서에 따라 필터 관리 후 다시 확인해보세요.' }
+        ],
+        dont: '장비 안에 세정제나 탈취제를 뿌리지 마세요. 냄새가 계속되면 점검을 요청하세요.',
+        photos: ['마지막 필터 관리일(기록이 있다면)']
+      },
+      {
+        id: 'c-parts', title: '필터나 부품을 주문하고 싶어요', type: 'collect', asType: '부품과 소모품',
+        steps: [
+          { do: '현장명, 장비 모델, 필요한 부품 사진을 준비해주세요. 필터는 가로·세로·두께와 수량도 있으면 좋습니다.' },
+          { do: '제품만 필요한지, 교체 작업까지 필요한지 정해주세요.', note: '규격을 모르면 기존 도면이나 장비 사진으로 문의해도 됩니다.' }
+        ],
+        dont: '규격을 확인하려고 장비를 열거나 높은 곳에 올라가지 마세요.',
+        photos: ['필요한 부품·필터 사진', '장비 이름표(모델명)', '기존 도면(있다면)']
+      },
+      {
+        id: 'c-model', title: '장비 이름이나 모델을 모르겠어요', type: 'collect', asType: '운전 이상',
+        steps: [
+          { do: '현장명과 설치 위치, 보이는 장비 사진으로도 문의할 수 있습니다.' },
+          { do: '안전하게 볼 수 있다면 장비 이름표나 조작 화면도 함께 찍어주세요.', note: '사용설명서가 필요할 때도 같은 정보로 요청하면 됩니다.' }
+        ],
+        dont: '이름표를 찾으려고 장비를 열거나 높은 곳에 올라가지 마세요.',
+        photos: ['장비 전체 사진', '이름표·조작 화면(안전할 때만)']
+      }
+    ]
+  }
+];
+
+/* 시연용 샘플 데이터 (실제 서번 데이터 아님) */
+const SAMPLE_INTAKE = {
+  site: 'OO대학교병원 본관 (샘플)',
+  unit: '지하 2층 기계실 AHU-3 (샘플)',
+  since: '오늘',
+  repeat: '계속됨',
+  code: 'E-01 (샘플 코드)',
+  memo: '오전 9시쯤 관리실 순찰 중 처음 발견함 (샘플)'
+};
+
+/* ---------------- 상태 ---------------- */
+const state = {};
+function resetState() {
+  Object.assign(state, {
+    safety: [], equipment: null, symptom: null,
+    stepIndex: 0, tried: [], resolvedAt: null, intake: null, startedAt: new Date()
+  });
+}
+
+/* ---------------- 화면 유틸 ---------------- */
+const chat = document.getElementById('chat');
+const el = (tag, attrs = {}, ...children) => {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') node.className = v;
+    else if (k === 'onclick') node.addEventListener('click', v);
+    else if (k === 'text') node.textContent = v;
+    else node.setAttribute(k, v);
+  }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return node;
+};
+function scrollDown() {
+  requestAnimationFrame(() => {
+    const last = chat.lastElementChild;
+    if (last) last.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+function bot(...paras) {
+  const bubble = el('div', { class: 'bubble' }, paras.map(p => typeof p === 'string' ? el('p', { text: p }) : p));
+  chat.append(el('div', { class: 'msg bot' }, el('div', { class: 'avatar', 'aria-hidden': 'true', text: '공' }), bubble));
+  scrollDown();
+}
+function user(text) {
+  chat.append(el('div', { class: 'msg user' }, el('div', { class: 'bubble', text })));
+}
+function choices(items, layout = '') {
+  const wrap = el('div', { class: 'choices ' + layout });
+  items.forEach(it => {
+    const b = el('button', { class: 'btn ' + (it.cls || ''), type: 'button' }, it.label, it.sub ? el('small', { text: it.sub }) : null);
+    b.addEventListener('click', () => {
+      wrap.querySelectorAll('button').forEach(x => x.disabled = true);
+      if (it.echo !== false) user(it.echoText || it.label);
+      it.go();
+    });
+    wrap.append(b);
+  });
+  chat.append(wrap);
+  scrollDown();
+  return wrap;
+}
+function card(...children) {
+  const c = el('div', { class: 'card' }, ...children);
+  chat.append(c);
+  scrollDown();
+  return c;
+}
+function lockCard(c) { c.querySelectorAll('button, input, select, textarea').forEach(x => x.disabled = true); }
+
+const STAGES = ['안전 확인', '장비 선택', '증상 선택', '단계별 점검', '결과'];
+function setStage(i) {
+  document.querySelectorAll('#progress span').forEach((s, idx) => s.classList.toggle('on', idx <= i));
+  document.getElementById('progressLabel').textContent = `${i + 1}/5 · ${STAGES[i]}`;
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ---------------- 1. 안전 확인 ---------------- */
+function start() {
+  resetState();
+  chat.innerHTML = '';
+  setStage(0);
+  bot('안녕하세요, 공조닥터입니다.', '공조기에 이상이 생겼을 때 무엇부터 확인할지 한 단계씩 안내하고, 해결이 안 되면 A/S 접수 요약을 만들어 드려요.');
+  bot('먼저 안전부터 확인할게요. 지금 해당하는 것이 있으면 모두 체크해주세요.');
+  const list = el('ul', { class: 'safety-list' }, SAFETY_ITEMS.map(s =>
+    el('li', {}, el('label', {}, el('input', { type: 'checkbox', value: s.id }), el('span', { text: s.text })))
+  ));
+  const c = card(el('h2', { text: '안전 확인' }), list);
+  const go = el('div', { class: 'actions' },
+    el('button', { class: 'btn primary center', type: 'button', onclick: () => {
+      const checked = [...list.querySelectorAll('input:checked')].map(i => i.value);
+      state.safety = checked;
+      lockCard(c);
+      if (checked.length) {
+        user('해당 있음: ' + checked.map(id => SAFETY_ITEMS.find(s => s.id === id).text).join(', '));
+        emergency();
+      } else {
+        user('해당 없음');
+        askEquipment();
+      }
+    } }, '확인했어요')
+  );
+  c.append(go);
+}
+
+function emergency() {
+  setStage(4);
+  bot('위험할 수 있는 상황이에요. 점검 단계를 건너뛰고 바로 A/S 요청으로 안내할게요.');
+  const c = card(
+    el('div', { class: 'result-head danger' }, el('strong', { text: '장비에 접근하지 마세요' }), el('span', { class: 'badge danger', text: '긴급 · 즉시 점검 요청' })),
+    el('ul', { class: 'check' },
+      el('li', { text: '장비를 열거나 내부를 만지지 마세요.' }),
+      el('li', { text: '안전하게 조작할 수 있을 때만 운전을 멈추세요.' }),
+      el('li', {}, el('b', { text: '화재가 의심되면 대피와 119 신고가 먼저입니다.' })),
+      el('li', { text: '차단기를 반복해서 올리거나, 소리를 확인하려고 다시 켜지 마세요.' })
+    ),
+    el('p', { class: 'note', text: '출처: ㈜서번 A/S 안내 "안전 확인" (2026-11-18)' })
+  );
+  state.equipment = { id: 'unknown', name: '(안전 이상으로 장비 확인 생략)' };
+  state.symptom = {
+    title: state.safety.map(id => SAFETY_ITEMS.find(s => s.id === id).text).join(' / '),
+    asType: '점검과 수리', type: 'collect',
+    photos: ['안전한 곳에서 촬영한 장비·현장 사진(접근하지 말 것)', '소음·진동 영상(안전할 때만)']
+  };
+  bot('안전한 곳으로 이동한 뒤, A/S 접수에 필요한 정보만 간단히 적어주세요.');
+  intakeForm(true);
+}
+
+/* ---------------- 2. 장비 선택 ---------------- */
+function askEquipment() {
+  setStage(1);
+  bot('어떤 장비인가요? 이름을 모르면 "잘 모르겠어요"를 눌러주세요.');
+  choices(EQUIPMENT.map(eq => ({ label: eq.name, sub: eq.hint, go: () => { state.equipment = eq; askSymptom(); } })), 'grid');
+}
+
+/* ---------------- 3. 증상 선택 ---------------- */
+function askSymptom() {
+  setStage(2);
+  bot(`${state.equipment.name}에서 어떤 증상이 있나요?`);
+  const items = state.equipment.symptoms.map(s => ({ label: s.title, go: () => { state.symptom = s; state.stepIndex = 0; beginSteps(); } }));
+  if (state.equipment.id !== 'common') {
+    items.push({ label: '목록에 없어요 (공통 증상 보기)', cls: 'ghost', go: () => { state.equipment = EQUIPMENT.find(e => e.id === 'common'); askSymptom(); } });
+  }
+  choices(items, 'col');
+}
+
+/* ---------------- 4. 단계별 점검 ---------------- */
+function beginSteps() {
+  setStage(3);
+  const s = state.symptom;
+  if (s.type === 'collect') {
+    bot('이 증상은 현장에서 직접 고치기보다 A/S 점검이 필요한 경우예요.', '접수 전에 아래 내용만 안전하게 확인해주세요.');
+  } else {
+    bot(`총 ${s.steps.length}단계예요. 한 단계씩 해보고 결과를 눌러주세요.`);
+  }
+  showStep();
+}
+
+function showStep() {
+  const s = state.symptom;
+  const i = state.stepIndex;
+  const step = s.steps[i];
+  const isLast = i === s.steps.length - 1;
+  const c = card(
+    el('span', { class: 'step-no', text: `${i + 1} / ${s.steps.length} 단계` }),
+    el('p', { class: 'step-do', text: step.do }),
+    step.note ? el('p', { class: 'note', text: step.note }) : null,
+    (isLast || s.type === 'collect') && s.dont ? el('div', { class: 'dont' }, el('b', { text: '하지 마세요 · ' }), s.dont) : null,
+    i === 0 && !isLast && s.type !== 'collect' && s.dont ? el('div', { class: 'dont' }, el('b', { text: '하지 마세요 · ' }), s.dont) : null
+  );
+  if (s.type === 'collect') {
+    choices([{ label: isLast ? '확인했어요 → A/S 접수 정보 입력' : '확인했어요', cls: 'primary', go: () => {
+      state.tried.push({ text: step.do, result: '확인함' });
+      lockCard(c);
+      if (isLast) toIntake(); else { state.stepIndex++; showStep(); }
+    } }]);
+    return;
+  }
+  choices([
+    { label: '해결됐어요', cls: 'ok', go: () => {
+      state.tried.push({ text: step.do, result: '해결됨' });
+      state.resolvedAt = i; lockCard(c); resolved();
+    } },
+    { label: isLast ? '그래도 안 돼요' : '안 돼요, 다음 단계', cls: 'no', go: () => {
+      state.tried.push({ text: step.do, result: '안 됨' });
+      lockCard(c);
+      if (isLast) { bot('직접 할 수 있는 확인은 모두 해보셨어요. 이제 A/S 접수를 준비할게요.'); toIntake(); }
+      else { state.stepIndex++; showStep(); }
+    } },
+    { label: '이 단계는 해당 없어요', cls: 'ghost', go: () => {
+      state.tried.push({ text: step.do, result: '해당 없음' });
+      lockCard(c);
+      if (isLast) { bot('직접 할 수 있는 확인은 모두 해보셨어요. 이제 A/S 접수를 준비할게요.'); toIntake(); }
+      else { state.stepIndex++; showStep(); }
+    } }
+  ]);
+}
+
+/* ---------------- 5-A. 해결됨 ---------------- */
+function resolved() {
+  setStage(4);
+  const s = state.symptom;
+  bot('다행이에요! 해결된 내용을 정리했어요.');
+  card(
+    el('div', { class: 'result-head ok' }, el('strong', { text: '현장 조치로 해결됨' }), el('span', { class: 'badge ok', text: 'A/S 불필요' })),
+    el('p', {}, el('b', { text: '장비 · ' }), state.equipment.name),
+    el('p', {}, el('b', { text: '증상 · ' }), s.title),
+    el('p', {}, el('b', { text: '해결된 단계 · ' }), `${state.resolvedAt + 1}단계: ${s.steps[state.resolvedAt].do}`),
+    el('h3', { text: '다시 생기면' }),
+    el('ul', { class: 'check' },
+      el('li', { text: '같은 증상이 반복되면 이 앱으로 다시 점검하고, 해결이 안 되면 A/S 접수 요약을 만들어 보내세요.' }),
+      el('li', { text: '필터는 사용설명서에서 직접 관리할 수 있다고 안내한 필터만 청소·교체하세요.' }),
+      s.dont ? el('li', { text: '주의: ' + s.dont }) : null
+    ),
+    el('div', { class: 'actions' }, el('button', { class: 'btn center', type: 'button', onclick: start }, '다른 증상 점검하기'))
+  );
+}
+
+/* ---------------- 5-B. A/S 접수 정보 ---------------- */
+function toIntake() {
+  bot('A/S 접수 요약에 들어갈 정보를 적어주세요. 모르는 칸은 비워두셔도 돼요.');
+  intakeForm(false);
+}
+
+function intakeForm(isEmergency) {
+  const f = el('form', { class: 'intake', novalidate: '' },
+    el('label', {}, '현장명 (건물·시설 이름)', el('input', { name: 'site', placeholder: '예: OO병원 본관', autocomplete: 'off' })),
+    el('label', {}, el('span', {}, '장비 번호·설치 위치 ', el('span', { class: 'opt', text: '(선택)' })), el('input', { name: 'unit', placeholder: '예: 지하 2층 기계실 AHU-3', autocomplete: 'off' })),
+    el('div', { class: 'row2' },
+      el('label', {}, '언제부터?', el('select', { name: 'since' }, ['모름', '방금', '오늘', '2~3일 전', '1주일 이상'].map(v => el('option', { value: v, text: v })))),
+      el('label', {}, '반복 여부', el('select', { name: 'repeat' }, ['모름', '처음', '계속됨', '가끔 반복', '이전에도 있었음'].map(v => el('option', { value: v, text: v }))))
+    ),
+    el('label', {}, el('span', {}, '오류코드 ', el('span', { class: 'opt', text: '(화면에 보이는 글자·숫자 그대로, 없으면 비움)' })), el('input', { name: 'code', placeholder: '예: E-01', autocomplete: 'off' })),
+    el('label', {}, el('span', {}, '추가 메모 ', el('span', { class: 'opt', text: '(선택)' })), el('textarea', { name: 'memo', placeholder: '예: 오전부터 냉방이 약하다는 연락을 받음' }))
+  );
+  const fillBtn = el('button', { class: 'btn ghost center', type: 'button' }, '시연용 예시 채우기 ', el('span', { class: 'sample-tag', text: '샘플 데이터' }));
+  fillBtn.addEventListener('click', () => {
+    for (const [k, v] of Object.entries(SAMPLE_INTAKE)) { if (f.elements[k]) f.elements[k].value = v; }
+    toast('샘플 데이터를 채웠어요 (실제 데이터 아님)');
+  });
+  const submit = el('button', { class: 'btn primary center', type: 'submit' }, 'A/S 접수 요약 만들기');
+  f.append(el('div', { class: 'actions' }, submit, fillBtn));
+  const c = card(el('h2', { text: isEmergency ? '긴급 A/S 접수 정보' : 'A/S 접수 정보' }), f);
+  f.addEventListener('submit', e => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(f).entries());
+    for (const k in data) data[k] = String(data[k]).trim();
+    state.intake = data;
+    lockCard(c);
+    user('입력 완료');
+    result(isEmergency);
+  });
+  setTimeout(() => f.elements.site && f.elements.site.focus({ preventScroll: true }), 300);
+}
+
+/* ---------------- 5-C. 결과: A/S 접수 요약 ---------------- */
+function fmtDate(d) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function buildSummary(isEmergency) {
+  const s = state.symptom, d = state.intake, blank = '(미입력)';
+  const safetyText = state.safety.length
+    ? '해당 있음 - ' + state.safety.map(id => SAFETY_ITEMS.find(x => x.id === id).text).join(', ')
+    : '연기·타는 냄새, 심한 소음·진동, 전기부 주변 누수 없음';
+  const lines = [
+    '[A/S 접수 요약] 공조닥터 작성',
+    `- 문의 유형: ${s.asType}`,
+    `- 긴급도: ${isEmergency ? '긴급 (안전 이상)' : '일반 점검 요청'}`,
+    `- 현장명: ${d.site || blank}`,
+    `- 장비: ${state.equipment.name}${d.unit ? ' / ' + d.unit : ''}`,
+    `- 증상: ${s.title}`,
+    `- 시작 시점: ${d.since} / 반복: ${d.repeat}`,
+    `- 오류코드: ${d.code || '없음 또는 모름'}`,
+    `- 안전 확인: ${safetyText}`
+  ];
+  if (state.tried.length) {
+    lines.push('- 현장에서 해본 확인:');
+    state.tried.forEach((t, i) => lines.push(`  ${i + 1}. ${t.text} → ${t.result}`));
+  }
+  lines.push(`- 첨부할 사진: ${(s.photos || []).join(', ') || '장비·화면 사진'}`);
+  if (d.memo) lines.push(`- 메모: ${d.memo}`);
+  lines.push(`- 작성 시각: ${fmtDate(new Date())}`);
+  return lines.join('\n');
+}
+
+function result(isEmergency) {
+  setStage(4);
+  const s = state.symptom;
+  const summary = buildSummary(isEmergency);
+  bot('A/S 접수 요약을 만들었어요. 복사해서 서번 A/S 접수 양식이나 이메일에 붙여넣으세요.');
+  const pre = el('pre', { class: 'summary', id: 'summaryText', text: summary });
+  const copyBtn = el('button', { class: 'btn primary center', type: 'button' }, '요약 복사하기');
+  copyBtn.addEventListener('click', () => copyText(summary));
+  card(
+    el('div', { class: 'result-head ' + (isEmergency ? 'danger' : 'warn') },
+      el('strong', { text: 'A/S 점검이 필요합니다' }),
+      el('span', { class: 'badge ' + (isEmergency ? 'danger' : 'warn'), text: isEmergency ? '긴급 · 즉시 점검 요청' : '일반 · 점검 요청' }),
+      el('div', { class: 'note', text: '긴급도·문의 유형 분류는 팀 가설이며 서번 공식 분류가 아닙니다.' })
+    ),
+    el('h3', { text: 'A/S 접수 요약' }),
+    pre,
+    el('div', { class: 'actions' }, copyBtn),
+    el('h3', { text: '준비할 사진 (최대 3개, 합계 10MB · PDF/JPG/PNG/WEBP)' }),
+    el('ul', { class: 'check' }, (s.photos || []).map(p => el('li', { text: p }))),
+    s.dont ? el('div', { class: 'dont' }, el('b', { text: '하지 마세요 · ' }), s.dont) : null,
+    el('div', { class: 'contact' },
+      el('p', {}, el('b', { text: '㈜서번 A/S 연락처' })),
+      el('p', {}, '전화 ', el('a', { href: AS_CONTACT.telHref, text: AS_CONTACT.tel }), ` (${AS_CONTACT.telNote})`),
+      el('p', {}, '이메일 ', el('span', { text: AS_CONTACT.email })),
+      el('p', {}, el('a', { href: AS_CONTACT.page, target: '_blank', rel: 'noopener', text: '서번 홈페이지 A/S 접수 양식 열기 ↗' })),
+      el('p', { class: 'note', text: '다른 업체를 통해 설치한 장비는 해당 납품·시공업체에 먼저 문의하세요. (출처: 서번 A/S 안내)' })
+    ),
+    el('div', { class: 'actions' }, el('button', { class: 'btn center', type: 'button', onclick: start }, '처음부터 다시 점검하기'))
+  );
+}
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = el('textarea', { style: 'position:fixed;left:-9999px;top:0' });
+      ta.value = text; document.body.append(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+    }
+    toast('복사했어요');
+  } catch (e) {
+    toast('복사에 실패했어요. 요약 글을 길게 눌러 직접 복사해주세요.');
+  }
+}
+
+document.getElementById('restartBtn').addEventListener('click', start);
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+else start();
+</script>
+</body>
+</html>
